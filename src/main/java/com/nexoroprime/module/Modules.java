@@ -3,10 +3,8 @@ package com.nexoroprime.module;
 import com.nexoroprime.NexoroPrime;
 import com.nexoroprime.ui.Ui;
 import net.minecraft.client.CloudStatus;
-import net.minecraft.client.GraphicsStatus;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Options;
-import net.minecraft.client.ParticleStatus;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 
@@ -150,9 +148,8 @@ public final class Modules {
                 Options o = mc.options;
                 s.put("rd", (double) o.renderDistance().get());
                 s.put("sd", (double) o.simulationDistance().get());
-                s.put("particles", (double) o.particles().get().ordinal());
+                s.put("particles", (double) ((Enum<?>) o.particles().get()).ordinal());
                 s.put("clouds", (double) o.cloudStatus().get().ordinal());
-                s.put("gfx", (double) o.graphicsMode().get().ordinal());
                 s.put("shadows", o.entityShadows().get() ? 1.0 : 0.0);
                 s.put("blend", (double) o.biomeBlendRadius().get());
                 s.put("edist", o.entityDistanceScaling().get());
@@ -174,9 +171,8 @@ public final class Modules {
                 Options o = mc.options;
                 o.renderDistance().set(s.get("rd").intValue());
                 o.simulationDistance().set(s.get("sd").intValue());
-                o.particles().set(ParticleStatus.values()[s.get("particles").intValue()]);
+                pick(() -> o.particles().get(), v -> o.particles().set(v), s.get("particles").intValue());
                 o.cloudStatus().set(CloudStatus.values()[s.get("clouds").intValue()]);
-                o.graphicsMode().set(GraphicsStatus.values()[s.get("gfx").intValue()]);
                 o.entityShadows().set(s.get("shadows") >= 0.5);
                 o.biomeBlendRadius().set(s.get("blend").intValue());
                 o.entityDistanceScaling().set(s.get("edist"));
@@ -186,6 +182,13 @@ public final class Modules {
                 s.clear();
             }
             appliedLevel = -1;
+        }
+
+        /** Sets an enum option by index without naming its class (works across versions). */
+        private static <E extends Enum<E>> void pick(java.util.function.Supplier<E> getter,
+                                                     java.util.function.Consumer<E> setter, int idx) {
+            E[] all = getter.get().getDeclaringClass().getEnumConstants();
+            setter.accept(all[Math.max(0, Math.min(idx, all.length - 1))]);
         }
 
         private void apply(Minecraft mc) {
@@ -198,9 +201,8 @@ public final class Modules {
             int sdCap = lv == 1 ? 10 : lv == 2 ? 6 : 5;
             o.renderDistance().set(Math.min(s.get("rd").intValue(), rdCap));
             o.simulationDistance().set(Math.min(s.get("sd").intValue(), sdCap));
-            o.particles().set(lv == 1 ? ParticleStatus.DECREASED : ParticleStatus.MINIMAL);
+            pick(() -> o.particles().get(), v -> o.particles().set(v), lv == 1 ? 1 : 2); // 0 all, 1 decreased, 2 minimal
             o.cloudStatus().set(lv == 1 ? CloudStatus.FAST : CloudStatus.OFF);
-            o.graphicsMode().set(GraphicsStatus.FAST);
             o.entityShadows().set(false);
             o.biomeBlendRadius().set(lv == 1 ? 1 : 0);
             o.entityDistanceScaling().set(lv == 1 ? 0.75 : 0.5);
