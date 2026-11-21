@@ -2,11 +2,13 @@
 
 Original client mod (no code or assets from any other client). Orange + blue theme.
 
-- **Main screen**: custom title screen (Singleplayer, Multiplayer, Client Menu, Options, Quit)
-- **Client menu**: press **Right Shift** (in game or on the main screen). Sidebar, module cards, favorites (star), per-module settings with sliders/toggles
-- **FPS Boost**: lowers render/simulation distance, particles, clouds, shadows, biome blend, entity distance, graphics mode and removes the FPS limit. 3 levels. Your original settings are saved and restored when you switch it off
-- **HUD**: FPS, Coordinates, CPS, Keystrokes, Clock (each can be moved to any screen corner)
-- **Others**: Zoom (hold C), Fullbright, Toggle Sprint
+- **Main screen**: custom title screen with animated snow (Singleplayer, Multiplayer, Client Menu, Options, Quit)
+- **Client menu** (Right Shift): module cards with name pills, filter chips (ALL / FAVORITE / HUD / VISUAL / PERFORMANCE / UTILITY), search box, star favorites, per-module settings (right-click a card or click "...")
+- **HUD editor**: drag every HUD widget anywhere ("Edit HUD" in the menu)
+- **HUD**: FPS, Coordinates, Direction, Speed, Ping, CPS, Keystrokes, Clock, Armor HUD, Item Counter
+- **FPS Boost**: render/simulation distance caps, entity distance, minimal particles, clouds/shadows/biome blend off, no view bob, unlock max FPS, VSync off. Each part switchable. Original settings are restored when you turn it off
+- **Visual**: Zoom (hold C), Fullbright, No View Bob, No FOV Effects, No Nausea Wobble, No Particles
+- **Utility**: Auto Sprint, Auto Respawn
 - Settings are saved in `config/nexoroprime.json`
 
 Requires: Fabric Loader, Fabric API, Java 21.

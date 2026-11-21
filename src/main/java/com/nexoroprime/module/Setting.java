@@ -9,6 +9,7 @@ public class Setting {
     public final Kind kind;
     public final double min, max, step;
     public double value;
+    public boolean hidden;
 
     private Setting(String key, String label, Kind kind, double min, double max, double step, double def) {
         this.key = key; this.label = label; this.kind = kind;
@@ -22,6 +23,8 @@ public class Setting {
     public static Setting slider(String key, String label, double min, double max, double step, double def) {
         return new Setting(key, label, Kind.SLIDER, min, max, step, def);
     }
+
+    public Setting hide() { hidden = true; return this; }
 
     public boolean bool() { return value >= 0.5; }
     public int intVal() { return (int) Math.round(value); }

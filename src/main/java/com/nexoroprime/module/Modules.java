@@ -1,89 +1,35 @@
 package com.nexoroprime.module;
 
+import com.nexoroprime.Config;
 import com.nexoroprime.NexoroPrime;
-import com.nexoroprime.ui.Ui;
 import net.minecraft.client.CloudStatus;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Options;
-import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import org.lwjgl.glfw.GLFW;
 
-import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-/** All built-in modules. */
+/** All built-in modules (HUD widgets live in HudModules). */
 public final class Modules {
 
     public static List<Module> create() {
         List<Module> l = new ArrayList<>();
         l.add(new FpsBoost());
-        l.add(new FpsHud());
-        l.add(new CoordsHud());
-        l.add(new CpsHud());
-        l.add(new KeystrokesHud());
-        l.add(new ClockHud());
+        HudModules.addAll(l);
         l.add(new Zoom());
         l.add(new Fullbright());
-        l.add(new ToggleSprint());
+        l.add(new NoViewBob());
+        l.add(new NoFovEffects());
+        l.add(new NoScreenEffects());
+        l.add(new NoParticles());
+        l.add(new AutoSprint());
+        l.add(new AutoRespawn());
         return l;
     }
 
-    // ---------------------------------------------------------------- HUD
-
-    static final class FpsHud extends TextHud {
-        FpsHud() { super("fps_display", "FPS Display", "Shows your frames per second.", true, 0); }
-        @Override protected String text(Minecraft mc) { return NexoroPrime.modules.fps + " FPS"; }
-    }
-
-    static final class CoordsHud extends TextHud {
-        CoordsHud() { super("coordinates", "Coordinates", "Shows your XYZ position and facing.", false, 0); }
-        @Override protected String text(Minecraft mc) {
-            if (mc.player == null) return "-";
-            return String.format("%d / %d / %d  %s", (int) Math.floor(mc.player.getX()),
-                    (int) Math.floor(mc.player.getY()), (int) Math.floor(mc.player.getZ()),
-                    mc.player.getDirection().getName().substring(0, 1).toUpperCase());
-        }
-    }
-
-    static final class CpsHud extends TextHud {
-        CpsHud() { super("cps_counter", "CPS Counter", "Clicks per second (left | right).", false, 0); }
-        @Override protected String text(Minecraft mc) {
-            return NexoroPrime.modules.cps(true) + " | " + NexoroPrime.modules.cps(false) + " CPS";
-        }
-    }
-
-    static final class ClockHud extends TextHud {
-        private static final DateTimeFormatter FMT = DateTimeFormatter.ofPattern("HH:mm");
-        ClockHud() { super("clock", "Clock", "Shows your real-world time.", false, 1); }
-        @Override protected String text(Minecraft mc) { return LocalTime.now().format(FMT); }
-    }
-
-    static final class KeystrokesHud extends HudModule {
-        KeystrokesHud() { super("keystrokes", "Keystrokes", "WASD and mouse buttons on screen.", false, 2); }
-        @Override public int width(Font f, Minecraft mc) { return 64; }
-        @Override public int height() { return 60; }
-
-        private void key(GuiGraphics g, Font f, int x, int y, int w, int h, String s, boolean down) {
-            Ui.round(g, x, y, w, h, 3, down ? 0xD8FF8A1F : 0xA0101A33);
-            Ui.textCenter(g, f, s, x + w / 2, y + (h - 8) / 2, down ? 0xFF1A0E02 : Ui.TEXT);
-        }
-
-        @Override
-        public void render(GuiGraphics g, Font f, Minecraft mc, int x, int y) {
-            Options o = mc.options;
-            key(g, f, x + 22, y, 20, 20, "W", o.keyUp.isDown());
-            key(g, f, x, y + 22, 20, 20, "A", o.keyLeft.isDown());
-            key(g, f, x + 22, y + 22, 20, 20, "S", o.keyDown.isDown());
-            key(g, f, x + 44, y + 22, 20, 20, "D", o.keyRight.isDown());
-            key(g, f, x, y + 44, 31, 16, "LMB", NexoroPrime.modules.leftDown);
-            key(g, f, x + 33, y + 44, 31, 16, "RMB", NexoroPrime.modules.rightDown);
-        }
-    }
-
-    // ---------------------------------------------------------------- Visual / utility
+    // ---------------------------------------------------------------- Visual
 
     static final class Zoom extends Module {
         private final Setting fov = add(Setting.slider("fov", "Zoom FOV", 30, 70, 1, 30));
@@ -91,7 +37,7 @@ public final class Modules {
         Zoom() { super("zoom", "Zoom", "Hold C to zoom in.", Category.VISUAL, false); }
 
         @Override public void onTick(Minecraft mc) {
-            boolean down = NexoroPrime.keyDown(org.lwjgl.glfw.GLFW.GLFW_KEY_C) && mc.screen == null;
+            boolean down = NexoroPrime.keyDown(GLFW.GLFW_KEY_C) && mc.screen == null;
             if (down) {
                 if (saved == null) saved = mc.options.fov().get();
                 mc.options.fov().set(fov.intVal());
@@ -120,30 +66,112 @@ public final class Modules {
         }
     }
 
-    static final class ToggleSprint extends Module {
-        ToggleSprint() { super("toggle_sprint", "Toggle Sprint", "Sprints automatically while you move forward.", Category.UTILITY, false); }
+    static final class NoViewBob extends Module {
+        private Boolean saved;
+        NoViewBob() { super("no_view_bob", "No View Bob", "Removes the walking camera shake.", Category.VISUAL, false); }
+        @Override public void onEnable() {
+            Options o = Minecraft.getInstance().options;
+            saved = o.bobView().get();
+            o.bobView().set(false);
+        }
+        @Override public void onDisable() {
+            if (saved != null) Minecraft.getInstance().options.bobView().set(saved);
+            saved = null;
+        }
+    }
+
+    static final class NoFovEffects extends Module {
+        private Double saved;
+        NoFovEffects() { super("no_fov_effects", "No FOV Effects", "Sprinting and speed no longer change your FOV.", Category.VISUAL, false); }
+        @Override public void onEnable() {
+            Options o = Minecraft.getInstance().options;
+            saved = o.fovEffectScale().get();
+            o.fovEffectScale().set(0.0);
+        }
+        @Override public void onDisable() {
+            if (saved != null) Minecraft.getInstance().options.fovEffectScale().set(saved);
+            saved = null;
+        }
+    }
+
+    static final class NoScreenEffects extends Module {
+        private Double saved;
+        NoScreenEffects() { super("no_screen_effects", "No Nausea Wobble", "Removes nausea and portal screen distortion.", Category.VISUAL, false); }
+        @Override public void onEnable() {
+            Options o = Minecraft.getInstance().options;
+            saved = o.screenEffectScale().get();
+            o.screenEffectScale().set(0.0);
+        }
+        @Override public void onDisable() {
+            if (saved != null) Minecraft.getInstance().options.screenEffectScale().set(saved);
+            saved = null;
+        }
+    }
+
+    static final class NoParticles extends Module {
+        private Integer saved;
+        NoParticles() { super("no_particles", "No Particles", "Minimal particles for cleaner visuals and more FPS.", Category.VISUAL, false); }
+        @Override public void onEnable() {
+            Options o = Minecraft.getInstance().options;
+            saved = ((Enum<?>) o.particles().get()).ordinal();
+            OptUtil.pick(() -> o.particles().get(), v -> o.particles().set(v), 2);
+        }
+        @Override public void onDisable() {
+            if (saved == null) return;
+            Options o = Minecraft.getInstance().options;
+            final int idx = saved;
+            OptUtil.pick(() -> o.particles().get(), v -> o.particles().set(v), idx);
+            saved = null;
+        }
+    }
+
+    // ---------------------------------------------------------------- Utility
+
+    static final class AutoSprint extends Module {
+        AutoSprint() { super("toggle_sprint", "Auto Sprint", "Sprints automatically while you move forward.", Category.UTILITY, false); }
         @Override public void onTick(Minecraft mc) {
             if (mc.player != null && mc.screen == null && mc.options.keyUp.isDown()) mc.options.keySprint.setDown(true);
         }
         @Override public void onDisable() { Minecraft.getInstance().options.keySprint.setDown(false); }
     }
 
+    static final class AutoRespawn extends Module {
+        AutoRespawn() { super("auto_respawn", "Auto Respawn", "Respawns you instantly when you die.", Category.UTILITY, false); }
+        @Override public void onTick(Minecraft mc) {
+            if (mc.player != null && mc.player.isDeadOrDying()) mc.player.respawn();
+        }
+    }
+
     // ---------------------------------------------------------------- Performance
 
     /**
-     * FPS Boost: lowers the settings that cost the most frame time. The original values are
-     * remembered (also in the config file) and restored when the module is switched off.
+     * FPS Boost. Remembers your original settings (also saved to the config file) and restores them
+     * when switched off. Every part can be switched on/off separately.
      */
     static final class FpsBoost extends Module {
-        private final Setting level = add(Setting.slider("level", "Boost level (1 balanced - 3 extreme)", 1, 3, 1, 2));
-        private final Setting unlimited = add(Setting.toggle("unlimited", "Unlimited FPS (no limit, VSync off)", true));
-        private int appliedLevel = -1;
+        private final Setting limRender = add(Setting.slider("render", "Limit render distance to", 4, 16, 1, 8));
+        private final Setting limSim = add(Setting.slider("sim", "Limit simulation distance to", 5, 16, 1, 6));
+        private final Setting entDist = add(Setting.slider("entity", "Entity distance", 0.5, 1.5, 0.25, 0.5));
+        private final Setting particles = add(Setting.toggle("particles", "Minimal particles", true));
+        private final Setting clouds = add(Setting.toggle("clouds", "Clouds off", true));
+        private final Setting shadows = add(Setting.toggle("shadows", "Entity shadows off", true));
+        private final Setting blend = add(Setting.toggle("blend", "Biome blend off", true));
+        private final Setting bob = add(Setting.toggle("bob", "No view bob", false));
+        private final Setting unlimited = add(Setting.toggle("unlimited", "Unlock max FPS", true));
+        private final Setting vsync = add(Setting.toggle("vsync", "VSync off", true));
+        private String applied = "";
 
-        FpsBoost() { super("fps_boost", "FPS Boost", "Lowers heavy graphics settings to raise FPS.", Category.PERFORMANCE, false); }
+        FpsBoost() { super("fps_boost", "FPS Boost", "Lowers heavy settings to raise your FPS.", Category.PERFORMANCE, false); }
+
+        private String signature() {
+            StringBuilder sb = new StringBuilder();
+            for (Setting s : settings) sb.append(s.value).append(';');
+            return sb.toString();
+        }
 
         @Override public void onEnable() {
             Minecraft mc = Minecraft.getInstance();
-            Map<String, Double> s = com.nexoroprime.Config.data.snapshot;
+            Map<String, Double> s = Config.data.snapshot;
             if (s.isEmpty()) {
                 Options o = mc.options;
                 s.put("rd", (double) o.renderDistance().get());
@@ -161,56 +189,51 @@ public final class Modules {
         }
 
         @Override public void onTick(Minecraft mc) {
-            if (appliedLevel != level.intVal()) apply(mc);
+            if (!applied.equals(signature())) apply(mc);
         }
 
         @Override public void onDisable() {
             Minecraft mc = Minecraft.getInstance();
-            Map<String, Double> s = com.nexoroprime.Config.data.snapshot;
+            Map<String, Double> s = Config.data.snapshot;
             if (!s.isEmpty()) {
-                Options o = mc.options;
-                o.renderDistance().set(s.get("rd").intValue());
-                o.simulationDistance().set(s.get("sd").intValue());
-                pick(() -> o.particles().get(), v -> o.particles().set(v), s.get("particles").intValue());
-                o.cloudStatus().set(CloudStatus.values()[s.get("clouds").intValue()]);
-                o.entityShadows().set(s.get("shadows") >= 0.5);
-                o.biomeBlendRadius().set(s.get("blend").intValue());
-                o.entityDistanceScaling().set(s.get("edist"));
-                o.framerateLimit().set(s.get("fps").intValue());
-                o.enableVsync().set(s.get("vsync") >= 0.5);
-                o.bobView().set(s.get("bob") >= 0.5);
+                restoreAll(mc, s);
                 s.clear();
             }
-            appliedLevel = -1;
+            applied = "";
         }
 
-        /** Sets an enum option by index without naming its class (works across versions). */
-        private static <E extends Enum<E>> void pick(java.util.function.Supplier<E> getter,
-                                                     java.util.function.Consumer<E> setter, int idx) {
-            E[] all = getter.get().getDeclaringClass().getEnumConstants();
-            setter.accept(all[Math.max(0, Math.min(idx, all.length - 1))]);
-        }
-
-        private void apply(Minecraft mc) {
-            Map<String, Double> s = com.nexoroprime.Config.data.snapshot;
-            if (s.isEmpty()) return;
+        private void restoreAll(Minecraft mc, Map<String, Double> s) {
             Options o = mc.options;
-            int lv = level.intVal();
-            appliedLevel = lv;
-            int rdCap = lv == 1 ? 12 : lv == 2 ? 8 : 6;
-            int sdCap = lv == 1 ? 10 : lv == 2 ? 6 : 5;
-            o.renderDistance().set(Math.min(s.get("rd").intValue(), rdCap));
-            o.simulationDistance().set(Math.min(s.get("sd").intValue(), sdCap));
-            pick(() -> o.particles().get(), v -> o.particles().set(v), lv == 1 ? 1 : 2); // 0 all, 1 decreased, 2 minimal
-            o.cloudStatus().set(lv == 1 ? CloudStatus.FAST : CloudStatus.OFF);
-            o.entityShadows().set(false);
-            o.biomeBlendRadius().set(lv == 1 ? 1 : 0);
-            o.entityDistanceScaling().set(lv == 1 ? 0.75 : 0.5);
-            o.bobView().set(lv < 3 && s.get("bob") >= 0.5);
-            if (unlimited.bool()) {
-                o.framerateLimit().set(260);
-                o.enableVsync().set(false);
-            }
+            o.renderDistance().set(s.get("rd").intValue());
+            o.simulationDistance().set(s.get("sd").intValue());
+            final int pi = s.get("particles").intValue();
+            OptUtil.pick(() -> o.particles().get(), v -> o.particles().set(v), pi);
+            o.cloudStatus().set(CloudStatus.values()[s.get("clouds").intValue()]);
+            o.entityShadows().set(s.get("shadows") >= 0.5);
+            o.biomeBlendRadius().set(s.get("blend").intValue());
+            o.entityDistanceScaling().set(s.get("edist"));
+            o.framerateLimit().set(s.get("fps").intValue());
+            o.enableVsync().set(s.get("vsync") >= 0.5);
+            o.bobView().set(s.get("bob") >= 0.5);
+        }
+
+        /** Each option becomes either the boosted value or its original (snapshot) value. */
+        private void apply(Minecraft mc) {
+            Map<String, Double> s = Config.data.snapshot;
+            if (s.isEmpty()) return;
+            applied = signature();
+            Options o = mc.options;
+            o.renderDistance().set(Math.min(s.get("rd").intValue(), limRender.intVal()));
+            o.simulationDistance().set(Math.min(s.get("sd").intValue(), limSim.intVal()));
+            o.entityDistanceScaling().set(Math.min(s.get("edist"), entDist.value));
+            final int pi = particles.bool() ? 2 : s.get("particles").intValue();
+            OptUtil.pick(() -> o.particles().get(), v -> o.particles().set(v), pi);
+            o.cloudStatus().set(clouds.bool() ? CloudStatus.OFF : CloudStatus.values()[s.get("clouds").intValue()]);
+            o.entityShadows().set(shadows.bool() ? false : s.get("shadows") >= 0.5);
+            o.biomeBlendRadius().set(blend.bool() ? 0 : s.get("blend").intValue());
+            o.bobView().set(bob.bool() ? false : s.get("bob") >= 0.5);
+            o.framerateLimit().set(unlimited.bool() ? 260 : s.get("fps").intValue());
+            o.enableVsync().set(vsync.bool() ? false : s.get("vsync") >= 0.5);
         }
     }
 

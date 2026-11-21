@@ -6,8 +6,8 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 
 public abstract class TextHud extends HudModule {
-    protected TextHud(String id, String name, String desc, boolean def, int corner) {
-        super(id, name, desc, def, corner);
+    protected TextHud(String id, String name, String desc, boolean def, double x, double y) {
+        super(id, name, desc, def, x, y);
     }
 
     protected abstract String text(Minecraft mc);

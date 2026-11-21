@@ -32,6 +32,7 @@ public class NexoroTitleScreen extends Screen {
         lastDown = down;
 
         renderBackground(g, mx, my, pt);
+        snow(g);
         // soft glows
         Ui.round(g, -60, this.height / 2 - 40, 220, 220, 110, 0x203D9BFF);
         Ui.round(g, this.width - 170, -50, 240, 240, 120, 0x22FF8A1F);
@@ -59,6 +60,19 @@ public class NexoroTitleScreen extends Screen {
 
         Ui.text(g, f, "NexoroPrime 1.0.0", 6, this.height - 12, Ui.MUTED);
         Ui.text(g, f, "RShift = client menu", this.width - f.width("RShift = client menu") - 6, this.height - 12, Ui.MUTED);
+    }
+
+    /** Cheap animated snow (a few 1-2 px fills). */
+    private void snow(GuiGraphics g) {
+        double t = System.currentTimeMillis() / 1000.0;
+        for (int i = 0; i < 90; i++) {
+            int h = i * 7919 + 13;
+            double bx = ((h * 31) & 1023) / 1023.0 * this.width + Math.sin(t * 0.6 + i) * 10;
+            double by = (((h * 17) & 1023) / 1023.0 * this.height + t * (16 + (i % 5) * 7)) % this.height;
+            int sz = 1 + (i % 3 == 0 ? 1 : 0);
+            int a = 0x55 + (i % 4) * 0x22;
+            g.fill((int) bx, (int) by, (int) bx + sz, (int) by + sz, (a << 24) | 0xFFFFFF);
+        }
     }
 
     private boolean button(GuiGraphics g, Font f, int mx, int my, boolean click,

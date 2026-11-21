@@ -89,19 +89,14 @@ public class ModuleManager {
         poll();
         if (mc.options.hideGui || mc.player == null) return;
 
+        if (mc.screen instanceof com.nexoroprime.ui.HudEditorScreen) return; // the editor draws them itself
         Font f = mc.font;
         int sw = mc.getWindow().getGuiScaledWidth();
         int sh = mc.getWindow().getGuiScaledHeight();
-        final int margin = 6, gap = 4;
-        int[] used = new int[4];
         for (Module m : all) {
             if (!m.isEnabled() || !(m instanceof HudModule h)) continue;
-            int c = Math.max(0, Math.min(3, h.corner.intVal()));
             int w = h.width(f, mc), ht = h.height();
-            int x = (c % 2 == 0) ? margin : sw - margin - w;
-            int y = (c < 2) ? margin + used[c] : sh - margin - used[c] - ht;
-            try { h.render(g, f, mc, x, y); } catch (Throwable t) { m.setEnabled(false); }
-            used[c] += ht + gap;
+            try { h.render(g, f, mc, h.screenX(sw, w), h.screenY(sh, ht)); } catch (Throwable t) { m.setEnabled(false); }
         }
     }
 

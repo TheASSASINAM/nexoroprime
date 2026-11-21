@@ -5,20 +5,24 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 
-/** Base for on-screen widgets. Position = one of the 4 screen corners (stacked automatically). */
+/** On-screen widget. Position is stored as a fraction of the free screen space (px, py) and moved in the HUD editor. */
 public abstract class HudModule extends Module {
-    public final Setting corner;
+    public final Setting px, py;
 
-    protected HudModule(String id, String name, String desc, boolean def, int defCorner) {
+    protected HudModule(String id, String name, String desc, boolean def, double x, double y) {
         super(id, name, desc, Category.HUD, def);
-        corner = add(Setting.slider("corner", "Corner (0 TL, 1 TR, 2 BL, 3 BR)", 0, 3, 1, defCorner));
+        px = add(Setting.slider("px", "X", 0, 1, 0.001, x).hide());
+        py = add(Setting.slider("py", "Y", 0, 1, 0.001, y).hide());
     }
 
     public abstract int width(Font f, Minecraft mc);
     public abstract int height();
     public abstract void render(GuiGraphics g, Font f, Minecraft mc, int x, int y);
 
-    /** Draws the standard dark pill with an orange accent. */
+    public int screenX(int sw, int w) { return (int) Math.round(px.value * Math.max(0, sw - w)); }
+    public int screenY(int sh, int h) { return (int) Math.round(py.value * Math.max(0, sh - h)); }
+
+    /** Standard dark pill with an orange accent. */
     protected static void panel(GuiGraphics g, int x, int y, int w, int h) {
         Ui.round(g, x, y, w, h, 3, 0xB4101A33);
         Ui.rect(g, x, y + 2, 2, h - 4, Ui.ORANGE);
