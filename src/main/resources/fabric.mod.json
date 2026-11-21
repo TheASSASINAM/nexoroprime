@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "nexoroprime",
+  "version": "${version}",
+  "name": "NexoroPrime",
+  "description": "NexoroPrime client: custom menu, main screen, HUD and FPS Boost.",
+  "authors": ["NexoroPrime"],
+  "license": "MIT",
+  "environment": "client",
+  "entrypoints": { "client": ["com.nexoroprime.NexoroPrime"] },
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "minecraft": "~1.21.11",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}
