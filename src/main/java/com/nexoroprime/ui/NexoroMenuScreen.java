@@ -15,11 +15,12 @@ import org.lwjgl.glfw.GLFW;
 import java.util.ArrayList;
 import java.util.List;
 
-/** NexoroPrime client menu: glass cards with icons, filter chips, search and a settings page. */
+/** NexoroPrime client menu: icon rail, header with search, filter pills, module card grid, settings page. */
 public class NexoroMenuScreen extends Screen {
 
-    private static final String[] CHIPS = { "All", "HUD", "Visuals", "Performance", "Utility", "Favorites" };
-    private static final int GAP = 8, CARD_H = 88, PAD = 12;
+    private static final String[] CHIPS = { "ALL", "FAVORITE", "HUD", "VISUAL", "PERFORMANCE", "UTILITY" };
+    private static final int GAP = 6, CARD_H = 66, RAIL = 28;
+    private static final int PANEL = 0xF2101A33, CARD = 0xFF1A2547, CARD_HOV = 0xFF233260, STRIP_OFF = 0xFF2A3A66;
 
     private int chip = 0;
     private String query = "";
@@ -33,11 +34,9 @@ public class NexoroMenuScreen extends Screen {
 
     @Override public boolean isPauseScreen() { return false; }
 
+    /** Plain dark overlay: no blur call, so it can never hit the "blur only once per frame" crash. */
     public void renderBackground(GuiGraphics g, int mx, int my, float pt) {
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.level != null) super.renderBackground(g, mx, my, pt); // blurred world, like a glass menu
-        else g.fillGradient(0, 0, this.width, this.height, 0xFF081532, 0xFF2B1507);
-        g.fill(0, 0, this.width, this.height, 0x66050A18);
+        g.fillGradient(0, 0, this.width, this.height, 0xA0050A18, 0xB0100A05);
     }
 
     @Override public void onClose() { Config.save(); super.onClose(); }
@@ -47,8 +46,8 @@ public class NexoroMenuScreen extends Screen {
         String q = query.trim().toLowerCase();
         for (Module m : NexoroPrime.modules.all) {
             boolean ok = chip == 0
-                    || (chip == 5 && Config.isFavorite(m.id))
-                    || (chip >= 1 && chip <= 4 && m.category == Category.values()[chip - 1]);
+                    || (chip == 1 && Config.isFavorite(m.id))
+                    || (chip >= 2 && m.category == Category.values()[chip - 2]);
             if (ok && !q.isEmpty() && !m.name.toLowerCase().contains(q) && !m.description.toLowerCase().contains(q)) ok = false;
             if (ok) out.add(m);
         }
@@ -87,71 +86,75 @@ public class NexoroMenuScreen extends Screen {
 
         renderBackground(g, mx, my, pt);
 
-        int pw = Math.min(this.width - 16, 348), ph = Math.min(this.height - 16, 430);
+        int pw = Math.min(this.width - 24, 600), ph = Math.min(this.height - 24, 340);
         int px = (this.width - pw) / 2, py = (this.height - ph) / 2;
-        Ui.round(g, px - 1, py - 1, pw + 2, ph + 2, 11, 0x40FFFFFF);
-        Ui.round(g, px, py, pw, ph, 10, 0xB00B1226);
+        Ui.round(g, px - 1, py - 1, pw + 2, ph + 2, 11, 0x66FF8A1F);
+        Ui.round(g, px, py, pw, ph, 10, PANEL);
 
-        // ---- header: logo or module name + close button
-        if (settingsFor == null) {
-            float sc = 1.5f;
-            int wa = (int) (f.width("NEXORO") * sc), wb = (int) (f.width("PRIME") * sc);
-            int lx = px + (pw - (wa + wb + 4)) / 2;
-            Ui.big(g, f, "NEXORO", lx, py + 9, sc, Ui.ORANGE);
-            Ui.big(g, f, "PRIME", lx + wa + 4, py + 9, sc, Ui.BLUE);
-        } else {
-            Ui.textCenter(g, f, settingsFor.name, px + pw / 2, py + 13, Ui.TEXT);
-        }
-        boolean closeHov = Ui.inside(mx, my, px + pw - 24, py + 8, 14, 14);
-        Ui.round(g, px + pw - 24, py + 8, 14, 14, 5, closeHov ? 0xFFE0431F : 0x40FFFFFF);
-        Ui.textCenter(g, f, "x", px + pw - 17, py + 11, Ui.TEXT);
+        // ---------------- icon rail
+        Ui.round(g, px + 6, py + 6, RAIL, ph - 12, 8, Ui.SIDEBAR);
+        Ui.round(g, px + 10, py + 11, 20, 20, 10, Ui.ORANGE);
+        Ui.textCenter(g, f, "N", px + 20, py + 17, 0xFF1A0E02);
+
+        int ry = py + 40;
+        boolean homeHov = Ui.inside(mx, my, px + 9, ry, 22, 22);
+        Ui.round(g, px + 9, ry, 22, 22, 6, settingsFor == null ? 0x55FF8A1F : homeHov ? 0x333D9BFF : 0x00000000);
+        Icons.draw(g, "home", px + 14, ry + 5, 1, settingsFor == null ? Ui.ORANGE_SOFT : Ui.TEXT);
+        if (click && homeHov) { settingsFor = null; scroll = 0; }
+
+        ry += 26;
+        boolean layHov = Ui.inside(mx, my, px + 9, ry, 22, 22);
+        if (layHov) Ui.round(g, px + 9, ry, 22, 22, 6, 0x333D9BFF);
+        Icons.draw(g, "layout", px + 14, ry + 5, 1, Ui.TEXT);
+        if (click && layHov) { Config.save(); mc.setScreen(new HudEditorScreen()); return; }
+        if (layHov) Ui.text(g, f, "Edit layout", px + RAIL + 12, ry + 7, Ui.MUTED);
+
+        Ui.textCenter(g, f, String.valueOf(NexoroPrime.modules.fps), px + 20, py + ph - 24, Ui.MUTED);
+        Ui.textCenter(g, f, "fps", px + 20, py + ph - 14, Ui.MUTED);
+
+        // ---------------- header
+        int cx = px + RAIL + 16, cw = pw - RAIL - 16 - 12;
+        Ui.textShadow(g, f, settingsFor != null ? settingsFor.name : "Home", cx, py + 13, Ui.TEXT);
+
+        boolean closeHov = Ui.inside(mx, my, px + pw - 22, py + 8, 14, 14);
+        Ui.round(g, px + pw - 22, py + 8, 14, 14, 5, closeHov ? 0xFFE0431F : 0x40FFFFFF);
+        Ui.textCenter(g, f, "x", px + pw - 15, py + 11, Ui.TEXT);
         if (click && closeHov) { onClose(); return; }
 
-        if (settingsFor != null) { renderSettings(g, f, mx, my, click, down, px, py, pw, ph); return; }
+        if (settingsFor != null) { renderSettings(g, f, mx, my, click, down, cx, py + 30, cw, ph - 30 - 10); return; }
 
-        // ---- filter chips (wrap)
-        int chx = px + PAD, chy = py + 34;
-        for (int i = 0; i < CHIPS.length; i++) {
-            int w = f.width(CHIPS[i]) + 16;
-            if (chx + w > px + pw - PAD) { chx = px + PAD; chy += 20; }
-            boolean act = i == chip, hov = Ui.inside(mx, my, chx, chy, w, 16);
-            Ui.round(g, chx, chy, w, 16, 8, act ? Ui.ORANGE : hov ? 0x55FFFFFF : 0x30FFFFFF);
-            Ui.text(g, f, CHIPS[i], chx + 8, chy + 4, act ? 0xFF1A0E02 : Ui.TEXT);
-            if (click && hov) { chip = i; scroll = 0; }
-            chx += w + 5;
-        }
-        int gridTop = chy + 16 + 8;
-        int gridBottom = py + ph - 44;
-
-        // ---- bottom bar: search + edit layout
-        int by = py + ph - 24;
-        int sw = pw - 2 * PAD - 92;
-        boolean sHov = Ui.inside(mx, my, px + PAD, by, sw, 18);
-        if (searchFocus) Ui.round(g, px + PAD - 1, by - 1, sw + 2, 20, 10, 0xAAFF8A1F);
-        Ui.round(g, px + PAD, by, sw, 18, 9, 0x40FFFFFF);
+        int sw = 130, sx = px + pw - 22 - 8 - sw, sy = py + 7;
+        boolean sHov = Ui.inside(mx, my, sx, sy, sw, 16);
+        if (searchFocus) Ui.round(g, sx - 1, sy - 1, sw + 2, 18, 9, 0xAAFF8A1F);
+        Ui.round(g, sx, sy, sw, 16, 8, CARD);
         boolean blink = (System.currentTimeMillis() / 500) % 2 == 0;
         boolean empty = query.isEmpty() && !searchFocus;
         String shown = empty ? "Search modules..." : query + (searchFocus && blink ? "_" : "");
-        Ui.text(g, f, Ui.trim(f, shown, sw - 16), px + PAD + 8, by + 5, empty ? Ui.MUTED : Ui.TEXT);
+        Ui.text(g, f, Ui.trim(f, shown, sw - 14), sx + 7, sy + 4, empty ? Ui.MUTED : Ui.TEXT);
         if (click) searchFocus = sHov;
 
-        int ex = px + pw - PAD - 86;
-        boolean eHov = Ui.inside(mx, my, ex, by, 86, 18);
-        Ui.round(g, ex, by, 86, 18, 9, eHov ? 0xFFFF9D45 : Ui.ORANGE);
-        Ui.textCenter(g, f, "Edit layout", ex + 43, by + 5, 0xFF1A0E02);
-        if (click && eHov) { Config.save(); mc.setScreen(new HudEditorScreen()); return; }
+        // ---------------- filter pills
+        int chx = cx;
+        for (int i = 0; i < CHIPS.length; i++) {
+            int w = f.width(CHIPS[i]) + 14;
+            boolean act = i == chip, hov = Ui.inside(mx, my, chx, py + 30, w, 14);
+            Ui.round(g, chx, py + 30, w, 14, 7, act ? Ui.ORANGE : hov ? CARD_HOV : CARD);
+            Ui.text(g, f, CHIPS[i], chx + 7, py + 33, act ? 0xFF1A0E02 : Ui.TEXT);
+            if (click && hov) { chip = i; scroll = 0; }
+            chx += w + 5;
+        }
 
-        renderGrid(g, f, mx, my, click, rclick, px + PAD, gridTop, pw - 2 * PAD, gridBottom - gridTop, py + ph - 38);
+        renderGrid(g, f, mx, my, click, rclick, cx, py + 52, cw, ph - 52 - 24, py + ph - 17);
     }
 
     private void renderGrid(GuiGraphics g, Font f, int mx, int my, boolean click, boolean rclick,
                             int cx, int cy, int cw, int ch, int descY) {
         List<Module> list = visible();
         if (list.isEmpty()) {
-            Ui.text(g, f, chip == 5 ? "No favorites yet - click the star on a module." : "Nothing found.", cx, cy + 6, Ui.MUTED);
+            Ui.text(g, f, chip == 1 ? "No favorites yet - click the star on a module." : "Nothing found.", cx, cy + 6, Ui.MUTED);
             return;
         }
-        int cols = 3;
+        int cols = Math.max(3, (cw + GAP) / (92 + GAP));
         int cardW = (cw - (cols - 1) * GAP) / cols;
         int rows = (list.size() + cols - 1) / cols;
         double maxScroll = Math.max(0, rows * (CARD_H + GAP) - GAP - ch);
@@ -168,27 +171,28 @@ public class NexoroMenuScreen extends Screen {
             boolean hov = Ui.inside(mx, my, x, y, cardW, CARD_H) && my >= cy && my < cy + ch;
             boolean on = m.isEnabled();
 
-            Ui.round(g, x - 1, y - 1, cardW + 2, CARD_H + 2, 9, on ? 0xAAFF8A1F : 0x26FFFFFF);
-            Ui.round(g, x, y, cardW, CARD_H, 8, hov ? 0x4AFFFFFF : 0x30FFFFFF);
+            if (on) Ui.round(g, x - 1, y - 1, cardW + 2, CARD_H + 2, 8, 0xCCFF8A1F);
+            Ui.round(g, x, y, cardW, CARD_H, 7, hov ? CARD_HOV : CARD);
 
-            Icons.draw(g, Icons.forModule(m.id), x + 9, y + 10, 2, on ? Ui.ORANGE : 0xFFDCE6FF);
+            // icon centred in the top area
+            Icons.draw(g, Icons.forModule(m.id), x + (cardW - 24) / 2, y + 9, 2, on ? Ui.ORANGE_SOFT : 0xFF9DB4F0);
 
-            boolean fav = Config.isFavorite(m.id);
-            Ui.text(g, f, fav ? "\u2605" : "\u2606", x + cardW - 14, y + 5, fav ? Ui.ORANGE : Ui.MUTED);
             boolean hasSet = hasSettings(m);
-            if (hasSet) Ui.text(g, f, "...", x + cardW - 31, y + 4, hov ? Ui.TEXT : Ui.MUTED);
+            if (hasSet) Ui.text(g, f, "...", x + cardW - 16, y + 2, hov ? Ui.TEXT : Ui.MUTED);
 
-            Ui.textShadow(g, f, Ui.trim(f, m.name, cardW - 14), x + 8, y + CARD_H - 40, Ui.TEXT);
-            Ui.round(g, x + 6, y + CARD_H - 25, cardW - 12, 17, 8, on ? Ui.ORANGE : 0x44FFFFFF);
-            Ui.textCenter(g, f, on ? "ON" : "OFF", x + cardW / 2, y + CARD_H - 21, on ? 0xFF1A0E02 : Ui.TEXT);
+            // name strip (orange when enabled), like a colour label
+            Ui.round(g, x + 4, y + CARD_H - 20, cardW - 8, 16, 5, on ? Ui.ORANGE : STRIP_OFF);
+            Ui.text(g, f, Ui.trim(f, m.name, cardW - 30), x + 9, y + CARD_H - 16, on ? 0xFF1A0E02 : Ui.TEXT);
+            boolean fav = Config.isFavorite(m.id);
+            Ui.text(g, f, fav ? "\u2605" : "\u2606", x + cardW - 16, y + CARD_H - 16, fav ? (on ? 0xFF1A0E02 : Ui.ORANGE) : (on ? 0xFF5A3410 : Ui.MUTED));
 
             if (hov) {
                 hoverDesc = m.description;
                 if (click || rclick) {
                     clicked = m;
                     if (rclick) kind = 2;
-                    else if (Ui.inside(mx, my, x + cardW - 20, y + 2, 18, 14)) kind = 1;
-                    else if (hasSet && Ui.inside(mx, my, x + cardW - 38, y + 2, 18, 14)) kind = 2;
+                    else if (Ui.inside(mx, my, x + cardW - 22, y + CARD_H - 20, 20, 16)) kind = 1;
+                    else if (hasSet && Ui.inside(mx, my, x + cardW - 22, y, 22, 14)) kind = 2;
                     else kind = 3;
                 }
             }
@@ -204,47 +208,45 @@ public class NexoroMenuScreen extends Screen {
     }
 
     private void renderSettings(GuiGraphics g, Font f, int mx, int my, boolean click, boolean down,
-                                int px, int py, int pw, int ph) {
+                                int x0, int top0, int w, int h) {
         Module m = settingsFor;
-        int x0 = px + PAD, w = pw - 2 * PAD;
-
-        boolean backHov = Ui.inside(mx, my, x0, py + 32, 52, 18);
-        Ui.round(g, x0, py + 32, 52, 18, 9, backHov ? 0x55FFFFFF : 0x30FFFFFF);
-        Ui.textCenter(g, f, "< Back", x0 + 26, py + 37, Ui.TEXT);
+        boolean backHov = Ui.inside(mx, my, x0, top0, 52, 16);
+        Ui.round(g, x0, top0, 52, 16, 8, backHov ? CARD_HOV : CARD);
+        Ui.textCenter(g, f, "< Back", x0 + 26, top0 + 4, Ui.TEXT);
         if (click && backHov) { settingsFor = null; Config.save(); return; }
 
         boolean on = m.isEnabled();
-        boolean tHov = Ui.inside(mx, my, x0 + w - 74, py + 32, 74, 18);
-        Ui.round(g, x0 + w - 74, py + 32, 74, 18, 9, on ? Ui.ORANGE : 0x44FFFFFF);
-        Ui.textCenter(g, f, on ? "ENABLED" : "DISABLED", x0 + w - 37, py + 37, on ? 0xFF1A0E02 : Ui.TEXT);
+        boolean tHov = Ui.inside(mx, my, x0 + w - 74, top0, 74, 16);
+        Ui.round(g, x0 + w - 74, top0, 74, 16, 8, on ? Ui.ORANGE : STRIP_OFF);
+        Ui.textCenter(g, f, on ? "ENABLED" : "DISABLED", x0 + w - 37, top0 + 4, on ? 0xFF1A0E02 : Ui.TEXT);
         if (click && tHov) { m.setEnabled(!on); Config.save(); }
 
-        Ui.text(g, f, Ui.trim(f, m.description, w), x0, py + 58, Ui.MUTED);
+        Ui.text(g, f, Ui.trim(f, m.description, w), x0, top0 + 24, Ui.MUTED);
 
-        int top = py + 74, bottom = py + ph - 12;
+        int top = top0 + 40, bottom = top0 + h;
         int y = top;
         g.enableScissor(x0 - 2, top, x0 + w + 2, bottom);
         for (Setting s : m.settings) {
             if (s.hidden) continue;
-            Ui.round(g, x0, y, w, 36, 7, 0x30FFFFFF);
-            Ui.text(g, f, Ui.trim(f, s.label, w - 60), x0 + 8, y + 6, Ui.TEXT);
+            Ui.round(g, x0, y, w, 32, 7, CARD);
+            Ui.text(g, f, Ui.trim(f, s.label, w - 60), x0 + 9, y + 5, Ui.TEXT);
             if (s.kind == Setting.Kind.TOGGLE) {
                 boolean v = s.bool();
-                int bx = x0 + w - 8 - 34, by = y + 10;
-                Ui.round(g, bx, by, 34, 16, 8, v ? Ui.ORANGE : 0x55FFFFFF);
+                int bx = x0 + w - 9 - 34, by = y + 8;
+                Ui.round(g, bx, by, 34, 16, 8, v ? Ui.ORANGE : STRIP_OFF);
                 Ui.round(g, v ? bx + 20 : bx + 2, by + 2, 12, 12, 6, 0xFFFFFFFF);
                 if (click && Ui.inside(mx, my, bx, by, 34, 16)) { s.set(v ? 0 : 1); Config.save(); }
             } else {
-                int tx = x0 + 8, tw = w - 16 - 40, ty = y + 26;
-                Ui.round(g, tx, ty - 2, tw, 4, 2, 0x55FFFFFF);
+                int tx = x0 + 9, tw = w - 18 - 40, ty = y + 23;
+                Ui.round(g, tx, ty - 2, tw, 4, 2, STRIP_OFF);
                 double frac = (s.value - s.min) / (s.max - s.min);
                 Ui.round(g, tx, ty - 2, Math.max(4, (int) (tw * frac)), 4, 2, Ui.BLUE);
                 Ui.round(g, tx + (int) (tw * frac) - 4, ty - 5, 8, 10, 4, Ui.ORANGE);
-                Ui.textCenter(g, f, s.display(), x0 + w - 8 - 16, y + 22, Ui.TEXT);
+                Ui.textCenter(g, f, s.display(), x0 + w - 9 - 16, y + 19, Ui.TEXT);
                 if (click && Ui.inside(mx, my, tx - 4, ty - 8, tw + 8, 16)) dragging = s;
                 if (dragging == s && down) s.set(s.min + Math.max(0, Math.min(1, (mx - tx) / (double) tw)) * (s.max - s.min));
             }
-            y += 42;
+            y += 38;
         }
         g.disableScissor();
     }
